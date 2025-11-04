@@ -1,7 +1,15 @@
-require('dotenv').config();
-const { Client, GatewayIntentBits } = require('discord.js');
+import dotenv from 'dotenv';
+import { Client, GatewayIntentBits } from 'discord.js';
 
-const keep_alive = require('./src/keep_alive.js');
+import attendanceSystem from './src/library/dataAttendance.js';
+import {
+   handlingMessagesAttendance,
+   handlingMessagesCheckTime,
+   handlingMessagesLearningSupport,
+   handlingMessages,
+} from './src/controllers/mainController.js';
+
+dotenv.config();
 
 const client = new Client({
    intents: [
@@ -12,18 +20,28 @@ const client = new Client({
 });
 
 client.once('ready', () => {
-   console.log(`✅ Logged in as ${client.user.tag}`);
+   const [botName, botID] = client.user.tag.split('#');
+   console.log(`{/} Logged in as ${botName} #${botID}`);
 });
 
-client.on('messageCreate', (message) => {
+client.on('messageCreate', async (message) => {
    if (message.author.bot) return;
 
-   if (message.content === '!ping') {
-      message.channel.send('🏓 Pong!');
-   }
-
-   if (message.content === '!hello') {
-      message.channel.send(`👋 Xin chào ${message.author.username}!`);
+   if (message.channel.parentId === '1435205452945166426') {
+      switch (message.channel.id) {
+         case '1435205773146980392': // ID kênh: điểm danh
+            handlingMessagesAttendance(message);
+            break;
+         case '1435206051237597245': // ID kênh: check time học
+            handlingMessagesCheckTime(message);
+            break;
+         case '1435185622771040446': // ID kênh: hỗ trợ học tập
+            handlingMessagesLearningSupport(message);
+            break;
+         default:
+            handlingMessages(message);
+            break;
+      }
    }
 });
 
