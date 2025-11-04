@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
+import express from 'express';
 import { Client, GatewayIntentBits } from 'discord.js';
 
-import attendanceSystem from './src/library/dataAttendance.js';
 import {
    handlingMessagesAttendance,
    handlingMessagesCheckTime,
@@ -10,6 +10,12 @@ import {
 } from './src/controllers/mainController.js';
 
 dotenv.config();
+
+const app = express();
+app.get('/', (req, res) => res.send('Discord Bot is running...'));
+app.listen(process.env.PORT || 3000, () => {
+   console.log('🌐 Web server running...');
+});
 
 const client = new Client({
    intents: [
@@ -21,7 +27,7 @@ const client = new Client({
 
 client.once('ready', () => {
    const [botName, botID] = client.user.tag.split('#');
-   console.log(`{/} Logged in as ${botName} #${botID}`);
+   console.log(`🤖 Logged in as ${botName} #${botID}`);
 });
 
 client.on('messageCreate', async (message) => {
