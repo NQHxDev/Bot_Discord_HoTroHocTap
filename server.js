@@ -6,7 +6,7 @@ import {
    handlingMessagesAttendance,
    handlingMessagesCheckTime,
    handlingMessagesLearningSupport,
-   handlingMessages,
+   handlingMessagesTest,
 } from './src/controllers/mainController.js';
 
 dotenv.config();

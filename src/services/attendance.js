@@ -102,3 +102,60 @@ export const handleMessageOffDuty = async (message) => {
       await handleAttendanceData(message.member.id, dailyDuration, monthDuration, currentDuration);
    }
 };
+
+export const handleMessageStatus = async (message) => {
+   const userOnDuty = attendanceSystem.findRecords(message.member.id);
+
+   if (!userOnDuty) {
+      await message.reply(
+         `❌ <@${message.member.id}>, bạn hiện chưa *On Duty* rồi!\n` +
+            '> Vui lòng gõ lệnh `!onduty` để bắt đầu vào ca học nào.'
+      );
+   } else {
+      const duration = timeDifference(userOnDuty.timeOnDuty);
+
+      const embed = new EmbedBuilder()
+         .setColor('#3498db')
+         .setTitle(`📚 Xin chào: ${message.member.displayName}`)
+         .addFields({
+            name: '> 📌 Hiện tại bạn đang trong ca học của mình!:',
+            value: [
+               `\`\`\`yaml\n🔹Đã học được: ${duration}\`\`\``,
+               `🕒 **Bắt đầu từ:** ${formatDateTime(userOnDuty.timeOnDuty)}`,
+               '',
+               `👏 *Cảm ơn bạn đã tham gia ca học hôm nay!*`,
+            ].join('\n'),
+            inline: false,
+         })
+         .setThumbnail(message.author.displayAvatarURL({ dynamic: true }))
+         .setFooter({
+            text: `Thực hiện bởi ${message.member.displayName}`,
+            iconURL: message.author.displayAvatarURL({ dynamic: true }),
+         })
+         .setTimestamp();
+
+      await message.channel.send({ embeds: [embed] });
+   }
+};
+
+export const handleHelpCommand = (message) => {
+   message.reply(
+      `📘 **Hướng dẫn sử dụng lệnh On Off Duty:**\n\n` +
+         `🔹 \`!onduty\` - Bắt đầu ca học\n` +
+         `🔹 \`!offduty\` - Kết thúc ca học\n` +
+         `🔹 \`!status\` - Kiểm tra trạng thái hiện tại\n` +
+         `🔹 \`!help\` - Hiển thị hướng dẫn này\n\n` +
+         `📌 **Lưu ý:** Các lệnh chỉ hoạt động trong kênh On Off Duty. Vui lòng sử dụng đúng kênh để bot phản hồi chính xác.`
+   );
+};
+
+export const handleMessageNotFound = (message) => {
+   message.reply(
+      `❌ **<@${message.member.id}> Lệnh không hợp lệ!**\n\n` +
+         `> Đây là kênh **On Off Duty** - nơi quản lý thời gian học tập!\n\n` +
+         `📌 Vui lòng sử dụng các lệnh sau:\n` +
+         `🔹 \`!onduty\` - Bắt đầu ca học\n` +
+         `🔹 \`!offduty\` - Kết thúc ca học\n\n` +
+         `📘 Nếu cần trợ giúp, hãy gõ \`!help\` để xem hướng dẫn chi tiết.`
+   );
+};
