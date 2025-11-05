@@ -32,3 +32,10 @@ export const totalMinutes = (input) => {
 
    return hours * 60 + minutes;
 };
+
+export const formatDuration = (totalMinutes) => {
+   if (totalMinutes <= 0) return [0, 0];
+   const hours = Math.floor(totalMinutes / 60);
+   const minutes = totalMinutes % 60;
+   return [hours, minutes];
+};

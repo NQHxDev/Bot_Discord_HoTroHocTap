@@ -1,4 +1,4 @@
-import { handleMessageOnDuty, handleMessageOffDuty } from './handleAttendance.js';
+import { handleMessageOnDuty, handleMessageOffDuty } from '../services/handleAttendance.js';
 
 export const handlingMessagesAttendance = (message) => {
    const messageContent = message.content.toLowerCase();
@@ -13,8 +13,17 @@ export const handlingMessagesAttendance = (message) => {
 };
 
 export const handlingMessagesCheckTime = (message) => {
-   if (message.content === '!checktime') {
-      message.channel.send('Check time is already!');
+   const messageContent = message.content.toLowerCase();
+   switch (messageContent) {
+      case '!myinfo':
+         message.channel.send('myinfo is already!');
+         break;
+      case '!kpi':
+         message.channel.send('kpi is already!');
+         break;
+      case '!ranking':
+         message.channel.send('ranking is already!');
+         break;
    }
 };
 

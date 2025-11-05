@@ -60,6 +60,4 @@ export const gerRankingLearn = (totalDuration) => {
 };
 
 // Ví dụ sử dụng:
-console.log(gerRankingLearn(20 * 60));
-
-console.log(gerRankingLearn(35850));
+// console.log(gerRankingLearn(35850));
