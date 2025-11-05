@@ -98,7 +98,6 @@ export const handleMessageCheckRank = async (message) => {
       .setTimestamp();
 
    await message.channel.send({ embeds: [embedSuccess], files: [footerImage] });
-   console.log(Date.now() - startTime + 'ms');
 };
 
 const studentNotFound = async (message) => {
