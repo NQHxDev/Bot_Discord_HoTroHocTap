@@ -1,27 +1,21 @@
 const attendanceSystem = {
    records: new Map(),
 
-   pushRecords(userID, userName, timeStart) {
+   pushRecords(userID, userName, timeStart, monthDuration = 0, dailyDuration = 0) {
       this.records.set(userID, {
          name: userName,
          timeOnDuty: timeStart,
+         monthDuration: monthDuration,
+         dailyDuration: dailyDuration,
       });
    },
 
-   popRecords(userID) {
+   removeRecords(userID) {
       this.records.delete(userID);
    },
 
    findRecords(userID) {
       return this.records.get(userID);
-   },
-
-   // Method xem thống kê
-   getStats() {
-      return {
-         total: this.records.size,
-         present: Array.from(this.records.values()).length,
-      };
    },
 
    resetData() {

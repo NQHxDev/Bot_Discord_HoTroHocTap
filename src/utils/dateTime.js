@@ -12,6 +12,21 @@ export const formatDateTime = (date) => {
    return format(date, 'dd/MM/yyyy - HH:mm');
 };
 
+export const formatVietnameseDate = (date) => {
+   const localDate = new Date(date);
+
+   const dayNames = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+   const dayName = dayNames[localDate.getDay()];
+
+   const day = localDate.getDate().toString().padStart(2, '0');
+   const month = (localDate.getMonth() + 1).toString().padStart(2, '0');
+   const year = localDate.getFullYear();
+   const hours = localDate.getHours().toString().padStart(2, '0');
+   const minutes = localDate.getMinutes().toString().padStart(2, '0');
+
+   return `${dayName}, ${day}/${month}/${year} - ${hours}:${minutes}`;
+};
+
 export const timeDifference = (inputDate) => {
    const now = new Date();
 
@@ -31,4 +46,11 @@ export const totalMinutes = (input) => {
    const minutes = minuteMatch ? parseInt(minuteMatch[1]) : 0;
 
    return hours * 60 + minutes;
+};
+
+export const formatDuration = (totalMinutes) => {
+   if (totalMinutes <= 0) return [0, 0];
+   const hours = Math.floor(totalMinutes / 60);
+   const minutes = totalMinutes % 60;
+   return [hours, minutes];
 };

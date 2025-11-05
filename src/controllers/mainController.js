@@ -1,4 +1,16 @@
-import { handleMessageOnDuty, handleMessageOffDuty } from './handleAttendance.js';
+import {
+   handleMessageOnDuty,
+   handleMessageOffDuty,
+   handleMessageStatus,
+   handleMessageNotFound,
+   handleHelpCommand,
+} from '../services/attendance.js';
+
+import {
+   handleMessageCheckInfo,
+   handleMessageCheckKPI,
+   handleMessageCheckRank,
+} from '../services/profileUser.js';
 
 export const handlingMessagesAttendance = (message) => {
    const messageContent = message.content.toLowerCase();
@@ -9,12 +21,30 @@ export const handlingMessagesAttendance = (message) => {
       case '!offduty':
          handleMessageOffDuty(message);
          break;
+      case '!status':
+         handleMessageStatus(message);
+         break;
+      case '!help':
+         handleHelpCommand(message);
+         break;
+      default:
+         handleMessageNotFound(message);
+         break;
    }
 };
 
 export const handlingMessagesCheckTime = (message) => {
-   if (message.content === '!checktime') {
-      message.channel.send('Check time is already!');
+   const messageContent = message.content.toLowerCase();
+   switch (messageContent) {
+      case '!myinfo':
+         handleMessageCheckInfo(message);
+         break;
+      case '!kpi':
+         handleMessageCheckKPI(message);
+         break;
+      case '!ranking':
+         handleMessageCheckRank(message);
+         break;
    }
 };
 
@@ -24,7 +54,7 @@ export const handlingMessagesLearningSupport = (message) => {
    }
 };
 
-export const handlingMessages = (message) => {
+export const handlingMessagesTest = (message) => {
    if (message.content === '!ping') {
       message.channel.send('🏓 Pong!');
    }

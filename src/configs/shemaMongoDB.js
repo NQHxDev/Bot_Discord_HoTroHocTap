@@ -9,10 +9,9 @@ const attendancesDaily = {
 const attendancesMonthly = {
    userId: '123456789012345678',
    month: '2025-11',
-   totalDurationMonth: 1769,
-   studyDays: 15, // số ngày học trong tháng
-   averageDaily: 118, // trung bình phút/ngày
+   totalDurationMonth: 500,
    createdAt: new Date(),
+   updatedAt: new Date(),
 };
 
 const students = {

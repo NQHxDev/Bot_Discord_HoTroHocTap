@@ -1,263 +1,212 @@
 import { getDB, closeDB } from '../configs/connectDatabase.js';
 
-const findAttendanceDaily = async (userID) => {
-   try {
-      const db = await getDB();
-
-      // Lấy ngày hôm nay
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      // Tìm bản ghi trong ngày hôm nay
-      const result = await db.collection('attendancesDaily').findOne({
-         userId: userID,
-         createdAt: {
-            $gte: today,
-            $lt: tomorrow,
-         },
-      });
-      return result;
-   } catch (error) {
-      console.log('Error find Attendance Daily:', error.message);
-      return null;
-   } finally {
-      await closeDB();
-   }
-};
-
-export const handleAttendanceDaily = async (userID, additionalDuration) => {
-   let db;
-   try {
-      const existingRecord = await findAttendanceDaily(userID);
-
-      if (existingRecord) {
-         const newDuration = existingRecord.duration + additionalDuration;
-
-         db = await getDB();
-         const result = await db.collection('attendancesDaily').updateOne(
-            {
-               _id: existingRecord._id,
-            },
-            {
-               $set: {
-                  duration: newDuration,
-                  updatedAt: new Date(),
-               },
-            }
-         );
-      } else {
-         // Tạo mới bản ghi cho ngày hôm nay
-         const attendancesDaily = {
-            userId: userID,
-            duration: additionalDuration,
-            createdAt: new Date(),
-            updatedAt: null,
-         };
-
-         db = await getDB();
-         await db.collection('attendancesDaily').insertOne(attendancesDaily);
-         console.log(`✅ Đã tạo bản ghi mới: ${additionalDuration} phút`);
-      }
-
-      // Cập nhật thống kê tháng
-      await updateAttendancesMonthly(userID);
-   } catch (error) {
-      console.log('Error handle Attendance Daily:', error.message);
-   } finally {
-      if (db) {
-         await closeDB();
-      }
-   }
-};
-
-const updateAttendancesMonthly = async (userID = null) => {
-   let db;
-   try {
-      db = await getDB();
-
-      const currentDate = new Date();
-      const currentMonth = currentDate.toISOString().substring(0, 7);
-      const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-      const startOfNextMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
-
-      const matchCondition = {
-         createdAt: { $gte: startOfMonth, $lt: startOfNextMonth },
-      };
-
-      if (userID) matchCondition.userId = userID;
-
-      const monthlyStats = await db
-         .collection('attendancesDaily')
-         .aggregate([
-            { $match: matchCondition },
-            {
-               $addFields: {
-                  durationNumber: {
-                     $cond: [{ $ifNull: ['$duration', false] }, { $toDouble: '$duration' }, 0],
-                  },
-               },
-            },
-            {
-               $group: {
-                  _id: '$userId',
-                  totalDurationMonth: { $sum: '$durationNumber' },
-                  studyDays: { $sum: 1 },
-                  averageDaily: { $avg: '$durationNumber' },
-                  firstStudy: { $min: '$createdAt' },
-                  lastStudy: { $max: '$updatedAt' },
-                  maxDaily: { $max: '$durationNumber' },
-               },
-            },
-         ])
-         .toArray();
-
-      if (monthlyStats.length > 0) {
-         const bulkOps = monthlyStats.map((stats) => ({
-            updateOne: {
-               filter: { userId: stats._id, month: currentMonth },
-               update: {
-                  $set: {
-                     totalDurationMonth: Math.round(stats.totalDurationMonth),
-                     studyDays: stats.studyDays,
-                     averageDaily: Math.round(stats.averageDaily),
-                     maxDaily: stats.maxDaily,
-                     lastStudy: stats.lastStudy || new Date(),
-                     updatedAt: new Date(),
-                  },
-                  $setOnInsert: {
-                     userId: stats._id,
-                     month: currentMonth,
-                     firstStudy: stats.firstStudy,
-                     createdAt: new Date(),
-                  },
-               },
-               upsert: true,
-            },
-         }));
-
-         await db.collection('attendancesMonthly').bulkWrite(bulkOps);
-      } else if (userID) {
-         await db.collection('attendancesMonthly').updateOne(
-            { userId: userID, month: currentMonth },
-            {
-               $set: {
-                  totalDurationMonth: 0,
-                  studyDays: 0,
-                  averageDaily: 0,
-                  maxDaily: 0,
-                  updatedAt: new Date(),
-               },
-               $setOnInsert: {
-                  createdAt: new Date(),
-                  firstStudy: new Date(),
-                  userId: userID,
-                  month: currentMonth,
-               },
-            },
-            { upsert: true }
-         );
-      }
-   } catch (error) {
-      console.error('Error update monthly attendance:', error.message);
-   } finally {
-      if (db) await closeDB();
-   }
-};
-
-export const getDurationToday = async (userID) => {
-   try {
-      const db = await getDB();
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      const todayRecord = await db.collection('attendancesDaily').findOne({
-         userId: userID,
-         createdAt: {
-            $gte: today,
-            $lt: tomorrow,
-         },
-      });
-
-      await closeDB();
-
-      if (todayRecord) {
-         return {
-            dailyHours: Math.floor(todayRecord.duration / 60),
-            dailyMinutes: todayRecord.duration % 60,
-         };
-      }
-      return {
-         dailyHours: 0,
-         dailyMinutes: 0,
-      };
-   } catch (error) {
-      console.log('Error get duration today:', error.message);
-      await closeDB();
-      return {
-         dailyHours: 0,
-         dailyMinutes: 0,
-      };
-   }
-};
-
-export const getDurationMonth = async (userID) => {
+export const handleAttendanceData = async (
+   userID,
+   newDailyDuration,
+   newMonthDuration,
+   currentDuration = 0,
+   monthAttendance = null
+) => {
    let db;
    try {
       db = await getDB();
 
       const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const monthStr =
+         monthAttendance || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-      const monthlyStats = await db
-         .collection('attendancesDaily')
-         .aggregate([
-            {
-               $match: {
-                  userId: userID,
-                  createdAt: { $gte: startOfMonth, $lt: startOfNextMonth },
-               },
-            },
-            {
-               $addFields: {
-                  durationNum: {
-                     $cond: [{ $isNumber: '$duration' }, '$duration', { $toDouble: '$duration' }],
+      // --- 1) update / upsert attendancesDaily for today
+      const updateDailyRecord = async () => {
+         const todayStart = new Date();
+         todayStart.setHours(0, 0, 0, 0);
+         const tomorrow = new Date(todayStart);
+         tomorrow.setDate(tomorrow.getDate() + 1);
+
+         // Tìm xem đã có điểm danh chưa
+         const existing = await db.collection('attendancesDaily').findOne({
+            userId: userID,
+            createdAt: { $gte: todayStart, $lt: tomorrow },
+         });
+
+         if (existing) {
+            // cập nhật duration + updatedAt
+            const result = await db.collection('attendancesDaily').updateOne(
+               { _id: existing._id },
+               {
+                  $set: {
+                     duration: newDailyDuration,
+                     updatedAt: new Date(),
                   },
-               },
-            },
-            {
-               $group: {
-                  _id: null,
-                  totalDuration: { $sum: '$durationNum' },
-                  studyDays: { $sum: 1 },
-               },
-            },
-         ])
-         .toArray();
+               }
+            );
+         } else {
+            // Tạo mới record cho ngày hôm nay
+            const doc = {
+               userId: userID,
+               duration: newDailyDuration,
+               createdAt: new Date(),
+               updatedAt: new Date(),
+            };
+            const { insertedId } = await db.collection('attendancesDaily').insertOne(doc);
+         }
+      };
 
-      if (monthlyStats.length === 0) {
-         return { totalDuration: 0, studyDays: 0, averageDaily: 0 };
+      // --- 2) update / upsert attendancesMonthly for current month
+      const updateMonthlyRecord = async () => {
+         // Tìm bản ghi tháng hiện tại
+         const existingMonth = await db.collection('attendancesMonthly').findOne({
+            userId: userID,
+            month: monthStr,
+         });
+
+         if (existingMonth) {
+            // Cập nhật các field
+            const updateFields = {
+               totalDurationMonth: newMonthDuration,
+               updatedAt: new Date(),
+            };
+            await db
+               .collection('attendancesMonthly')
+               .updateOne({ _id: existingMonth._id }, { $set: updateFields });
+         } else {
+            // Tạo mới bản ghi tháng
+            const doc = {
+               userId: userID,
+               month: monthStr,
+               totalDurationMonth: newMonthDuration,
+               createdAt: new Date(),
+               updatedAt: new Date(),
+            };
+            const { insertedId } = await db.collection('attendancesMonthly').insertOne(doc);
+         }
+      };
+
+      // --- 3) update / upsert students
+      const updateStudentRecord = async () => {
+         if (currentDuration < 0 || typeof currentDuration !== 'number' || isNaN(currentDuration)) {
+            currentDuration = 0;
+         }
+
+         const query = { userId: userID };
+
+         const update = {
+            $inc: { totalDuration: Math.round(currentDuration) },
+            $set: { updatedAt: new Date() },
+            $setOnInsert: { userId: userID, createdAt: new Date(), updatedAt: new Date() },
+         };
+
+         await db.collection('students').updateOne(query, update, { upsert: true });
+      };
+
+      await updateDailyRecord();
+      await updateMonthlyRecord();
+      await updateStudentRecord();
+   } catch (error) {
+      console.error('Error handleAttendanceDaily:', error.message);
+      throw error;
+   } finally {
+      if (db) await closeDB();
+   }
+};
+
+export const getDurationToday = async (userID, date = null) => {
+   let db;
+   try {
+      db = await getDB();
+
+      // Nếu không truyền ngày thì lấy ngày hôm nay
+      const targetDate = date ? new Date(date) : new Date();
+      targetDate.setHours(0, 0, 0, 0);
+      const nextDate = new Date(targetDate);
+      nextDate.setDate(targetDate.getDate() + 1);
+
+      // Lấy bản ghi điểm danh trong ngày
+      const record = await db.collection('attendancesDaily').findOne({
+         userId: userID,
+         createdAt: { $gte: targetDate, $lt: nextDate },
+      });
+
+      await closeDB();
+
+      if (!record) {
+         return 0;
+      }
+      return record.duration || 0;
+   } catch (error) {
+      console.error('❌ Error getDurationToday:', error.message);
+      await closeDB();
+      return 0;
+   }
+};
+
+export const getDurationMonth = async (userID, month = null) => {
+   let db;
+   try {
+      db = await getDB();
+
+      // Nếu không truyền tháng thì mặc định lấy tháng hiện tại
+      let targetMonth = month;
+      if (!targetMonth) {
+         const now = new Date();
+         const year = now.getFullYear();
+         const monthNum = String(now.getMonth() + 1).padStart(2, '0');
+         targetMonth = `${year}-${monthNum}`;
       }
 
-      const { totalDuration, studyDays } = monthlyStats[0];
-      const averageDaily = Math.round(totalDuration / studyDays);
+      // Tìm bản ghi trong tháng
+      const record = await db.collection('attendancesMonthly').findOne({
+         userId: userID,
+         month: targetMonth,
+      });
 
+      // Nếu không có dữ liệu, trả về giá trị mặc định
+      if (!record) {
+         return {
+            totalDurationMonth: 0,
+            studyDays: 0,
+            averageDaily: 0,
+            maxDaily: 0,
+         };
+      }
+
+      // Trả về nguyên bản ghi
       return {
-         totalDuration: Math.round(totalDuration),
-         studyDays,
-         averageDaily: isNaN(averageDaily) ? 0 : averageDaily,
+         totalDurationMonth: record.totalDurationMonth || 0,
+         studyDays: record.studyDays || 0,
+         averageDaily: record.averageDaily || 0,
+         maxDaily: record.maxDaily || 0,
       };
    } catch (error) {
-      console.error('❌ Error getDurationMonth:', error);
-      return { totalDuration: 0, studyDays: 0, averageDaily: 0 };
+      console.error('Error getDurationMonth:', error.message);
+      return {
+         totalDurationMonth: 0,
+         studyDays: 0,
+         averageDaily: 0,
+         maxDaily: 0,
+      };
    } finally {
-      await closeDB();
+      if (db) await closeDB();
+   }
+};
+
+export const getDataStudent = async (userID) => {
+   let db;
+   try {
+      db = await getDB();
+      const record = await db.collection('students').findOne({ userId: userID });
+      if (!record) {
+         return null;
+      }
+
+      return {
+         totalDuration: record.totalDuration,
+         startLearn: record.createdAt,
+         lastUpdate: record.updatedAt,
+      };
+   } catch (error) {
+      console.error('❌ Error getTotalDurationAllTime:', error.message);
+      return 0;
+   } finally {
+      if (db) await closeDB();
    }
 };
