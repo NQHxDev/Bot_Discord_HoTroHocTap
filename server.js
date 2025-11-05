@@ -2,6 +2,8 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { Client, GatewayIntentBits } from 'discord.js';
 
+import './src/library/rankSystem.js';
+
 import {
    handlingMessagesAttendance,
    handlingMessagesCheckTime,
@@ -25,7 +27,7 @@ const client = new Client({
    ],
 });
 
-client.once('ready', () => {
+client.once('clientReady', () => {
    const [botName, botID] = client.user.tag.split('#');
    console.log(`🤖 Logged in as ${botName} #${botID}`);
 });

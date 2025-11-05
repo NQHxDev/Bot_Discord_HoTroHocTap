@@ -92,7 +92,7 @@ export const handleAttendanceData = async (
          const update = {
             $inc: { totalDuration: Math.round(currentDuration) },
             $set: { updatedAt: new Date() },
-            $setOnInsert: { userId: userID, createdAt: new Date() },
+            $setOnInsert: { userId: userID, createdAt: new Date(), updatedAt: new Date() },
          };
 
          await db.collection('students').updateOne(query, update, { upsert: true });
@@ -184,6 +184,28 @@ export const getDurationMonth = async (userID, month = null) => {
          averageDaily: 0,
          maxDaily: 0,
       };
+   } finally {
+      if (db) await closeDB();
+   }
+};
+
+export const getDataStudent = async (userID) => {
+   let db;
+   try {
+      db = await getDB();
+      const record = await db.collection('students').findOne({ userId: userID });
+      if (!record) {
+         return null;
+      }
+
+      return {
+         totalDuration: record.totalDuration,
+         startLearn: record.createdAt,
+         lastUpdate: record.updatedAt,
+      };
+   } catch (error) {
+      console.error('❌ Error getTotalDurationAllTime:', error.message);
+      return 0;
    } finally {
       if (db) await closeDB();
    }

@@ -1,6 +1,6 @@
 import { EmbedBuilder } from 'discord.js';
 
-import attendanceSystem from '../library/dataAttendance.js';
+import attendanceSystem from '../library/attendanceSystem.js';
 import { formatDateTime, timeDifference, totalMinutes, formatDuration } from '../utils/dateTime.js';
 import {
    handleAttendanceData,
@@ -145,7 +145,9 @@ export const handleHelpCommand = (message) => {
          `🔹 \`!offduty\` - Kết thúc ca học\n` +
          `🔹 \`!status\` - Kiểm tra trạng thái hiện tại\n` +
          `🔹 \`!help\` - Hiển thị hướng dẫn này\n\n` +
-         `📌 **Lưu ý:** Các lệnh chỉ hoạt động trong kênh On Off Duty. Vui lòng sử dụng đúng kênh để bot phản hồi chính xác.`
+         `📌 **Lưu ý:** Các lệnh chỉ hoạt động trong kênh On Off Duty.\n` +
+         '> Vui lòng sử dụng đúng kênh để bot phản hồi chính xác.\n' +
+         `<@${message.member.id}> - Chúc bạn có một ngày học tập vui vẻ.`
    );
 };
 
