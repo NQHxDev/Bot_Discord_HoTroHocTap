@@ -1,7 +1,8 @@
 import { EmbedBuilder } from 'discord.js';
 
-import attendanceSystem from '../library/attendanceSystem.js';
 import { formatDateTime, timeDifference, totalMinutes, formatDuration } from '../utils/dateTime.js';
+import { hasCacheStudent } from '../dal/redisCache.js';
+import { getStudent, pushStudent, removeStudent } from '../dal/redisCache.js';
 import {
    handleAttendanceData,
    getDurationToday,
@@ -9,7 +10,7 @@ import {
 } from '../controllers/databaseController.js';
 
 export const handleMessageOnDuty = async (message) => {
-   if (attendanceSystem.findRecords(message.member.id)) {
+   if (await hasCacheStudent(message.member.id)) {
       await message.reply(
          `❌ <@${message.member.id}>, bạn hiện đang *On Duty* rồi!\n` +
             '> Vui lòng gõ lệnh `!offduty` trước khi bật lại chế độ này nhé.'
@@ -38,39 +39,34 @@ export const handleMessageOnDuty = async (message) => {
          .setTimestamp();
 
       await message.channel.send({ embeds: [embed] });
+
       const dailyDuration = await getDurationToday(message.member.id);
       const monthDuration = await getDurationMonth(message.member.id);
-      attendanceSystem.pushRecords(
-         message.member.id,
-         message.member.displayName,
-         new Date(),
-         monthDuration.totalDurationMonth,
-         dailyDuration
-      );
+      await pushStudent({
+         memberID: message.member.id,
+         totalDurationDaily: dailyDuration,
+         totalDurationMonth: monthDuration.totalDurationMonth,
+      });
    }
 };
 
 export const handleMessageOffDuty = async (message) => {
-   const userOnDuty = attendanceSystem.findRecords(message.member.id);
+   const currentRecord = await getStudent(message.member.id);
 
-   if (!userOnDuty) {
+   if (!currentRecord) {
       await message.reply(
          `❌ <@${message.member.id}>, bạn hiện chưa *On Duty* rồi!\n` +
             '> Vui lòng gõ lệnh `!onduty` để bắt đầu vào ca học nào.'
       );
    } else {
-      const [start, end] = [userOnDuty.timeOnDuty, formatDateTime(new Date())];
+      const [start, end] = [formatDateTime(currentRecord.createdAt), formatDateTime(new Date())];
       const duration = timeDifference(start);
 
-      const currentDuration = totalMinutes(duration);
-      let dailyDuration = currentDuration;
-      let monthDuration = currentDuration;
+      console.log(currentRecord.createdAt + ' | ' + formatDateTime(currentRecord.createdAt));
 
-      const currentRecord = attendanceSystem.findRecords(message.member.id);
-      if (currentRecord) {
-         dailyDuration += currentRecord.dailyDuration;
-         monthDuration += currentRecord.monthDuration;
-      }
+      const currentDuration = totalMinutes(duration);
+      let dailyDuration = currentDuration + currentRecord.dailyDuration;
+      let monthDuration = currentDuration + currentRecord.monthDuration;
 
       const [totalHourMonth, totalMinuteMonth] = formatDuration(monthDuration);
       const [dailyHours, dailyMinutes] = formatDuration(dailyDuration);
@@ -81,7 +77,7 @@ export const handleMessageOffDuty = async (message) => {
          .addFields({
             name: '> 📌 Ca học đã kết thúc:',
             value: [
-               `\`\`\`yaml\n🔹Bắt đầu: ${formatDateTime(start)}\n🔹Kết thúc: ${end}\`\`\``,
+               `\`\`\`yaml\n🔹Bắt đầu: ${start}\n🔹Kết thúc: ${end}\`\`\``,
                '> 💼 Tổng thời gian:',
                `\`\`\`yaml\n🔹Thời gian: ${duration}\`\`\``,
                `🗓️ **Tổng hôm nay:** ${dailyHours} giờ ${dailyMinutes} phút`,
@@ -98,13 +94,14 @@ export const handleMessageOffDuty = async (message) => {
          .setTimestamp();
 
       await message.channel.send({ embeds: [embed] });
-      attendanceSystem.removeRecords(message.member.id);
+
+      await removeStudent(message.member.id);
       await handleAttendanceData(message.member.id, dailyDuration, monthDuration, currentDuration);
    }
 };
 
 export const handleMessageStatus = async (message) => {
-   const userOnDuty = attendanceSystem.findRecords(message.member.id);
+   const userOnDuty = await getStudent(message.member.id);
 
    if (!userOnDuty) {
       await message.reply(

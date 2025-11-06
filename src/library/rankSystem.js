@@ -1,7 +1,5 @@
 class RankSystem {
    constructor() {
-      console.log('{/} RankSystem đang khởi tạo...');
-
       this.ranks = [
          { name: 'Nhà trẻ', duration: 0 },
          { name: 'Mẫu giáo', duration: 30 * 60 },
@@ -25,7 +23,7 @@ class RankSystem {
       ];
 
       this._initializeCache();
-      console.log('{/} RankSystem khởi tạo thành công!');
+      console.log(`{/} RankSystem khởi tạo thành công!`);
    }
 
    _initializeCache() {

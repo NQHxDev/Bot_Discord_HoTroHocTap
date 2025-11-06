@@ -2,7 +2,11 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { Client, GatewayIntentBits } from 'discord.js';
 
+import appRouter from './src/routes/mainRoute.js';
+import redisClient from './src/dal/redisClient.js';
 import './src/library/rankSystem.js';
+
+import { connectionPool } from './src/configs/connectDatabase.js';
 
 import {
    handlingMessagesAttendance,
@@ -14,8 +18,17 @@ import {
 dotenv.config();
 
 const app = express();
-app.get('/', (req, res) => res.send('Discord Bot is running...'));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use('/api', appRouter);
+
 app.listen(process.env.PORT || 3000, () => {
+   if (connectionPool) {
+      console.log('🚀 Connected to Database!');
+   }
+   if (redisClient.isReady) {
+      console.log('🚀 Connected to Redis Cloud!');
+   }
    console.log('🌐 Web server running...');
 });
 
@@ -28,8 +41,8 @@ const client = new Client({
 });
 
 client.once('clientReady', () => {
-   const [botName, botID] = client.user.tag.split('#');
-   console.log(`🤖 Logged in as ${botName} #${botID}`);
+   const [botName] = client.user.tag.split('#');
+   console.log(`🤖 Bot Discord: ${botName} running...`);
 });
 
 client.on('messageCreate', async (message) => {
