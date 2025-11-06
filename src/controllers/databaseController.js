@@ -1,4 +1,5 @@
 import connectionPool from '../configs/connectDatabase.js';
+import { getYearMonth } from '../utils/dateTime.js';
 
 export const getDataStudent = async (userID) => {
    let conn;
@@ -183,47 +184,119 @@ export const getDurationMonth = async (userID, month = null) => {
    let conn;
    try {
       conn = await connectionPool.getConnection();
-      try {
-         const now = new Date();
-         let year, monthIndex;
 
-         if (month === null || month === undefined) {
-            year = now.getFullYear();
-            monthIndex = now.getMonth() + 1;
-         } else if (typeof month === 'number' && Number.isInteger(month)) {
-            if (month < 1 || month > 12) return 0;
-            const currentMonthIndex = now.getMonth() + 1;
-            if (month > currentMonthIndex) return 0;
-            year = now.getFullYear();
-            monthIndex = month;
-         } else {
-            const parsed = new Date(month);
-            if (isNaN(parsed.getTime())) return 0;
-            year = parsed.getFullYear();
-            monthIndex = parsed.getMonth() + 1;
-         }
+      const yearMonth = getYearMonth(month);
+      if (!yearMonth) return 0;
 
-         const [rows] = await conn.execute(
-            `SELECT SUM(duration_minutes) AS totalDurationMonth
-         FROM attendance_daily
-         WHERE discord_id = ? AND MONTH(attendance_day) = ? AND YEAR(attendance_day) = ?`,
-            [userID, monthIndex, year]
-         );
+      const [rows] = await conn.execute(
+         `SELECT SUM(duration_minutes) AS totalDurationMonth
+          FROM attendance_daily
+          WHERE discord_id = ? AND MONTH(attendance_day) = ? AND YEAR(attendance_day) = ?`,
+         [userID, yearMonth.monthIndex, yearMonth.year]
+      );
 
-         return rows?.[0]?.totalDurationMonth ? Number(rows[0].totalDurationMonth) : 0;
-      } finally {
-         conn.release();
-      }
+      return rows?.[0]?.totalDurationMonth ? Number(rows[0].totalDurationMonth) : 0;
    } catch (err) {
       console.error("Error getting connection for month's duration:", err.message);
       return 0;
+   } finally {
+      if (conn) conn.release();
    }
 };
 
 /**
- * Trả về tổng phút tháng, năm
- * Trung bình số phút học trong tháng hiện tại
- * Trả về chuỗi ngày học dài nhất trong tháng
- * Trả về chuôi hiện tại
- * Trả về kỉ lục chuỗi học dài nhất
+ * Trả về tổng phút học tháng
+ * Trung bình số phút học trong tháng
+ * Trả về số ngày đã học trong tháng
+ * Trả về thời gian của ngày học lâu nhất
+ * Trả về kỉ lục chuỗi học dài nhất trong tháng
  **/
+export const getStudentKPI = async (userID, month = null) => {
+   let conn;
+   const buildEmpty = () => {
+      return {
+         totalMinutesMonth: 0,
+         avgMinutesPerStudyDay: 0,
+         studyDaysCount: 0,
+         longestStudyMinutes: 0,
+         longestStreakDays: 0,
+      };
+   };
+
+   try {
+      conn = await connectionPool.getConnection();
+
+      const yearMonth = getYearMonth(month);
+      if (!yearMonth) return buildEmpty();
+
+      const { year, monthIndex } = yearMonth;
+
+      const [summary] = await conn.execute(
+         `SELECT
+            COALESCE(SUM(duration_minutes), 0) AS totalMinutesMonth,
+            COUNT(*) AS studyDaysCount,
+            COALESCE(MAX(duration_minutes), 0) AS longestStudyMinutes
+         FROM attendance_daily
+         WHERE discord_id = ?
+            AND MONTH(attendance_day) = ?
+            AND YEAR(attendance_day) = ?
+         `,
+         [userID, monthIndex, year]
+      );
+
+      // Nếu không có bản ghi nào
+      if (!summary || summary.length === 0 || summary[0].studyDaysCount === 0) {
+         return buildEmpty();
+      }
+
+      const { totalMinutesMonth, studyDaysCount, longestStudyMinutes } = summary[0];
+      const avgMinutesPerStudyDay =
+         studyDaysCount > 0 ? Number((totalMinutesMonth / studyDaysCount).toFixed(2)) : 0;
+
+      const [rows] = await conn.execute(
+         `
+            SELECT attendance_day
+            FROM attendance_daily
+            WHERE discord_id = ?
+               AND MONTH(attendance_day) = ?
+               AND YEAR(attendance_day) = ?
+            ORDER BY attendance_day ASC
+         `,
+         [userID, monthIndex, year]
+      );
+
+      let longestStreakDays = 0;
+      let currentStreak = 0;
+      let prevDate = null;
+
+      for (const row of rows) {
+         const date = new Date(row.attendance_day);
+         if (prevDate) {
+            const diff = (date.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24);
+            if (diff === 1) {
+               currentStreak++;
+            } else {
+               longestStreakDays = Math.max(longestStreakDays, currentStreak);
+               currentStreak = 1;
+            }
+         } else {
+            currentStreak = 1;
+         }
+         prevDate = date;
+      }
+      longestStreakDays = Math.max(longestStreakDays, currentStreak);
+
+      return {
+         totalMinutesMonth: Number(totalMinutesMonth),
+         avgMinutesPerStudyDay,
+         studyDaysCount: Number(studyDaysCount),
+         longestStudyMinutes: Number(longestStudyMinutes),
+         longestStreakDays,
+      };
+   } catch (err) {
+      console.error('Error in getStudentKPI:', err.message);
+      return buildEmpty();
+   } finally {
+      if (conn) conn.release();
+   }
+};

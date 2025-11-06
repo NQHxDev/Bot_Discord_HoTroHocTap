@@ -61,3 +61,31 @@ export const formatDuration = (totalMinutes) => {
    const minutes = totalMinutes % 60;
    return [hours, minutes];
 };
+
+/**
+ * Hàm xác định year và monthIndex từ tham số month
+ * @param {number|string|null} month - Tháng cần xử lý
+ * @returns {Object|null} { year, monthIndex } hoặc null nếu không hợp lệ
+ */
+export const getYearMonth = (month = null) => {
+   const now = new Date();
+   let year, monthIndex;
+
+   if (month === null || month === undefined) {
+      year = now.getFullYear();
+      monthIndex = now.getMonth() + 1;
+   } else if (typeof month === 'number' && Number.isInteger(month)) {
+      if (month < 1 || month > 12) return null;
+      const currentMonthIndex = now.getMonth() + 1;
+      if (month > currentMonthIndex) return null;
+      year = now.getFullYear();
+      monthIndex = month;
+   } else {
+      const parsed = new Date(month);
+      if (isNaN(parsed.getTime())) return null;
+      year = parsed.getFullYear();
+      monthIndex = parsed.getMonth() + 1;
+   }
+
+   return { year, monthIndex };
+};
