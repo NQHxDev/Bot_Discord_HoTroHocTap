@@ -3,10 +3,10 @@ import express from 'express';
 import { Client, GatewayIntentBits } from 'discord.js';
 
 import appRouter from './src/routes/mainRoute.js';
-import redisClient from './src/dal/redisClient.js';
+import redisClient from './src/cache/redisClient.js';
 import './src/library/rankSystem.js';
 
-import { connectionPool } from './src/configs/connectDatabase.js';
+import connectionPool from './src/configs/connectDatabase.js';
 
 import {
    handlingMessagesAttendance,

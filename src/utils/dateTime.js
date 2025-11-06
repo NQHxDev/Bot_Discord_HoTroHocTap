@@ -29,8 +29,14 @@ export const formatVietnameseDate = (date) => {
 
 export const timeDifference = (inputDate) => {
    const now = new Date();
+   const parsed = new Date(inputDate);
 
-   const diffMs = Math.abs(now - inputDate);
+   if (isNaN(parsed.getTime())) {
+      console.error('Invalid date format:', inputDate);
+      return 'Ngày không hợp lệ';
+   }
+
+   const diffMs = Math.abs(now - parsed);
    const diffMinutes = Math.floor(diffMs / (1000 * 60));
    const totalHours = Math.floor(diffMinutes / 60);
    const remainingMinutes = diffMinutes % 60;
@@ -50,6 +56,7 @@ export const totalMinutes = (input) => {
 
 export const formatDuration = (totalMinutes) => {
    if (totalMinutes <= 0) return [0, 0];
+
    const hours = Math.floor(totalMinutes / 60);
    const minutes = totalMinutes % 60;
    return [hours, minutes];

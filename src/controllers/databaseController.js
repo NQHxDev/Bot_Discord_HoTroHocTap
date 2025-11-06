@@ -1,212 +1,161 @@
-import { getDB, closeDB } from '../configs/connectDatabase.js';
+import connectionPool from '../configs/connectDatabase.js';
 
-export const handleAttendanceData = async (
-   userID,
-   newDailyDuration,
-   newMonthDuration,
-   currentDuration = 0,
-   monthAttendance = null
-) => {
-   let db;
+export const handleAttendanceData = async (userID, currentDuration = 0) => {
+   let conn;
    try {
-      db = await getDB();
+      const toInt = (v) => {
+         const n = Number(v);
+         if (!Number.isFinite(n) || isNaN(n)) return 0;
+         return Math.max(0, Math.floor(n));
+      };
+      const minutes = toInt(currentDuration);
+
+      conn = await connectionPool.getConnection();
+      await conn.beginTransaction();
 
       const now = new Date();
-      const monthStr =
-         monthAttendance || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-      // --- 1) update / upsert attendancesDaily for today
-      const updateDailyRecord = async () => {
-         const todayStart = new Date();
-         todayStart.setHours(0, 0, 0, 0);
-         const tomorrow = new Date(todayStart);
-         tomorrow.setDate(tomorrow.getDate() + 1);
+      await conn.execute(
+         `INSERT INTO students (discord_id, total_duration, created_at, last_update)
+            VALUES (?, ?, ?, ?) ON DUPLICATE KEY
+            UPDATE total_duration = total_duration + VALUES(total_duration),
+         last_update = VALUES(last_update)`,
+         [userID, minutes, now, now]
+      );
 
-         // Tìm xem đã có điểm danh chưa
-         const existing = await db.collection('attendancesDaily').findOne({
-            userId: userID,
-            createdAt: { $gte: todayStart, $lt: tomorrow },
-         });
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-         if (existing) {
-            // cập nhật duration + updatedAt
-            const result = await db.collection('attendancesDaily').updateOne(
-               { _id: existing._id },
-               {
-                  $set: {
-                     duration: newDailyDuration,
-                     updatedAt: new Date(),
-                  },
-               }
-            );
-         } else {
-            // Tạo mới record cho ngày hôm nay
-            const doc = {
-               userId: userID,
-               duration: newDailyDuration,
-               createdAt: new Date(),
-               updatedAt: new Date(),
-            };
-            const { insertedId } = await db.collection('attendancesDaily').insertOne(doc);
+      await conn.execute(
+         `INSERT INTO attendance_daily (discord_id, attendance_day, duration_minutes, last_update)
+            VALUES (?, ?, ?, ?) ON DUPLICATE KEY
+            UPDATE duration_minutes = duration_minutes + VALUES(duration_minutes),
+         last_update = VALUES(last_update)`,
+         [userID, today, minutes, now]
+      );
+
+      await conn.commit();
+      return true;
+   } catch (err) {
+      if (conn) {
+         try {
+            await conn.rollback();
+         } catch (e) {
+            console.error('Rollback error:', e.message);
          }
-      };
-
-      // --- 2) update / upsert attendancesMonthly for current month
-      const updateMonthlyRecord = async () => {
-         // Tìm bản ghi tháng hiện tại
-         const existingMonth = await db.collection('attendancesMonthly').findOne({
-            userId: userID,
-            month: monthStr,
-         });
-
-         if (existingMonth) {
-            // Cập nhật các field
-            const updateFields = {
-               totalDurationMonth: newMonthDuration,
-               updatedAt: new Date(),
-            };
-            await db
-               .collection('attendancesMonthly')
-               .updateOne({ _id: existingMonth._id }, { $set: updateFields });
-         } else {
-            // Tạo mới bản ghi tháng
-            const doc = {
-               userId: userID,
-               month: monthStr,
-               totalDurationMonth: newMonthDuration,
-               createdAt: new Date(),
-               updatedAt: new Date(),
-            };
-            const { insertedId } = await db.collection('attendancesMonthly').insertOne(doc);
-         }
-      };
-
-      // --- 3) update / upsert students
-      const updateStudentRecord = async () => {
-         if (currentDuration < 0 || typeof currentDuration !== 'number' || isNaN(currentDuration)) {
-            currentDuration = 0;
-         }
-
-         const query = { userId: userID };
-
-         const update = {
-            $inc: { totalDuration: Math.round(currentDuration) },
-            $set: { updatedAt: new Date() },
-            $setOnInsert: { userId: userID, createdAt: new Date(), updatedAt: new Date() },
-         };
-
-         await db.collection('students').updateOne(query, update, { upsert: true });
-      };
-
-      await updateDailyRecord();
-      await updateMonthlyRecord();
-      await updateStudentRecord();
-   } catch (error) {
-      console.error('Error handleAttendanceDaily:', error.message);
-      throw error;
+      }
+      console.error('Error Handle Attendance Student:', err.message);
+      throw err;
    } finally {
-      if (db) await closeDB();
+      if (conn) conn.release();
    }
 };
 
+/**
+ * Trả về tổng phút của ngày
+ * date có thể là null => mặc định today;
+ * hoặc chuỗi/Date có thể parse được.
+ */
 export const getDurationToday = async (userID, date = null) => {
-   let db;
+   let conn;
    try {
-      db = await getDB();
+      conn = await connectionPool.getConnection();
+      try {
+         let targetDate;
+         if (!date) {
+            targetDate = new Date();
+         } else {
+            targetDate = new Date(date);
+            if (isNaN(targetDate.getTime())) return 0;
+         }
+         targetDate.setHours(0, 0, 0, 0);
 
-      // Nếu không truyền ngày thì lấy ngày hôm nay
-      const targetDate = date ? new Date(date) : new Date();
-      targetDate.setHours(0, 0, 0, 0);
-      const nextDate = new Date(targetDate);
-      nextDate.setDate(targetDate.getDate() + 1);
+         // Lấy dạng YYYY-MM-DD
+         const resultDate = new Intl.DateTimeFormat('vi-VN', {
+            timeZone: 'Asia/Ho_Chi_Minh',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+         }).format(targetDate);
 
-      // Lấy bản ghi điểm danh trong ngày
-      const record = await db.collection('attendancesDaily').findOne({
-         userId: userID,
-         createdAt: { $gte: targetDate, $lt: nextDate },
-      });
+         // Chuyển "dd/mm/yyyy" thành "yyyy-mm-dd"
+         const [day, month, year] = resultDate.split('/');
+         const formattedDate = `${year}-${month}-${day}`;
 
-      await closeDB();
+         const [rows] = await conn.execute(
+            'SELECT duration_minutes FROM attendance_daily WHERE discord_id = ? AND attendance_day = ?',
+            [userID, formattedDate]
+         );
 
-      if (!record) {
-         return 0;
+         return rows.length > 0 ? Number(rows[0].duration_minutes) : 0;
+      } finally {
+         conn.release();
       }
-      return record.duration || 0;
-   } catch (error) {
-      console.error('❌ Error getDurationToday:', error.message);
-      await closeDB();
+   } catch (err) {
+      console.error("Error getting connection for today's duration:", err.message);
       return 0;
    }
 };
 
+/**
+ * Trả về tổng phút trong tháng
+ * month: null => tháng hiện tại;
+ * nếu là số nguyên 1-12 => hiểu là tháng của năm hiện tại (nếu tháng > hiện tại -> trả về 0)
+ * nếu truyền chuỗi/Date => lấy month & year từ đó.
+ */
 export const getDurationMonth = async (userID, month = null) => {
-   let db;
+   let conn;
    try {
-      db = await getDB();
-
-      // Nếu không truyền tháng thì mặc định lấy tháng hiện tại
-      let targetMonth = month;
-      if (!targetMonth) {
+      conn = await connectionPool.getConnection();
+      try {
          const now = new Date();
-         const year = now.getFullYear();
-         const monthNum = String(now.getMonth() + 1).padStart(2, '0');
-         targetMonth = `${year}-${monthNum}`;
+         let year, monthIndex;
+
+         if (month === null || month === undefined) {
+            year = now.getFullYear();
+            monthIndex = now.getMonth() + 1;
+         } else if (typeof month === 'number' && Number.isInteger(month)) {
+            if (month < 1 || month > 12) return 0;
+            const currentMonthIndex = now.getMonth() + 1;
+            if (month > currentMonthIndex) return 0;
+            year = now.getFullYear();
+            monthIndex = month;
+         } else {
+            const parsed = new Date(month);
+            if (isNaN(parsed.getTime())) return 0;
+            year = parsed.getFullYear();
+            monthIndex = parsed.getMonth() + 1;
+         }
+
+         const [rows] = await conn.execute(
+            `SELECT SUM(duration_minutes) AS totalDurationMonth
+         FROM attendance_daily
+         WHERE discord_id = ? AND MONTH(attendance_day) = ? AND YEAR(attendance_day) = ?`,
+            [userID, monthIndex, year]
+         );
+
+         return rows?.[0]?.totalDurationMonth ? Number(rows[0].totalDurationMonth) : 0;
+      } finally {
+         conn.release();
       }
-
-      // Tìm bản ghi trong tháng
-      const record = await db.collection('attendancesMonthly').findOne({
-         userId: userID,
-         month: targetMonth,
-      });
-
-      // Nếu không có dữ liệu, trả về giá trị mặc định
-      if (!record) {
-         return {
-            totalDurationMonth: 0,
-            studyDays: 0,
-            averageDaily: 0,
-            maxDaily: 0,
-         };
-      }
-
-      // Trả về nguyên bản ghi
-      return {
-         totalDurationMonth: record.totalDurationMonth || 0,
-         studyDays: record.studyDays || 0,
-         averageDaily: record.averageDaily || 0,
-         maxDaily: record.maxDaily || 0,
-      };
-   } catch (error) {
-      console.error('Error getDurationMonth:', error.message);
-      return {
-         totalDurationMonth: 0,
-         studyDays: 0,
-         averageDaily: 0,
-         maxDaily: 0,
-      };
-   } finally {
-      if (db) await closeDB();
+   } catch (err) {
+      console.error("Error getting connection for month's duration:", err.message);
+      return 0;
    }
 };
 
 export const getDataStudent = async (userID) => {
-   let db;
+   let conn;
    try {
-      db = await getDB();
-      const record = await db.collection('students').findOne({ userId: userID });
-      if (!record) {
-         return null;
+      conn = await connectionPool.getConnection();
+      try {
+         const [rows] = await conn.execute('SELECT * FROM students WHERE discord_id = ?', [userID]);
+         return rows.length > 0 ? rows[0] : null;
+      } finally {
+         conn.release();
       }
-
-      return {
-         totalDuration: record.totalDuration,
-         startLearn: record.createdAt,
-         lastUpdate: record.updatedAt,
-      };
-   } catch (error) {
-      console.error('❌ Error getTotalDurationAllTime:', error.message);
-      return 0;
-   } finally {
-      if (db) await closeDB();
+   } catch (err) {
+      console.error('Error getting connection for student data:', err.message);
+      return null;
    }
 };
