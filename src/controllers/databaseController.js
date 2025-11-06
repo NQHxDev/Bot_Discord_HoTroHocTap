@@ -1,5 +1,21 @@
 import connectionPool from '../configs/connectDatabase.js';
 
+export const getDataStudent = async (userID) => {
+   let conn;
+   try {
+      conn = await connectionPool.getConnection();
+      try {
+         const [rows] = await conn.execute('SELECT * FROM students WHERE discord_id = ?', [userID]);
+         return rows.length > 0 ? rows[0] : null;
+      } finally {
+         conn.release();
+      }
+   } catch (err) {
+      console.error('Error getting connection for student data:', err.message);
+      return null;
+   }
+};
+
 export const handleAttendanceData = async (userID, currentDuration = 0) => {
    let conn;
    try {
@@ -15,13 +31,8 @@ export const handleAttendanceData = async (userID, currentDuration = 0) => {
 
       const now = new Date();
 
-      await conn.execute(
-         `INSERT INTO students (discord_id, total_duration, created_at, last_update)
-            VALUES (?, ?, ?, ?) ON DUPLICATE KEY
-            UPDATE total_duration = total_duration + VALUES(total_duration),
-         last_update = VALUES(last_update)`,
-         [userID, minutes, now, now]
-      );
+      // Thêm mới hoặc Cập nhật thông tin học viên
+      await updateStudyProgress(conn, userID, minutes, now);
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -50,6 +61,71 @@ export const handleAttendanceData = async (userID, currentDuration = 0) => {
       if (conn) conn.release();
    }
 };
+
+/**
+ * Thêm mới học viên nếu chưa tồn tại trong database
+ * Cập nhật thời gian học nếu sinh viên đã tồn tại
+ * Cập nhật chuỗi ngày học tập liên tục
+ */
+async function updateStudyProgress(conn, userID, minutes, studyDate) {
+   // Lấy thông tin hiện tại
+   const [currentStudent] = await conn.execute(
+      `SELECT current_streak, longest_streak, last_streak_update
+         FROM students WHERE discord_id = ?`,
+      [userID]
+   );
+
+   let currentStreak = 0;
+   let longestStreak = 0;
+   let lastStreakDate = null;
+
+   if (currentStudent.length > 0) {
+      currentStreak = currentStudent[0].current_streak;
+      longestStreak = currentStudent[0].longest_streak;
+      lastStreakDate = currentStudent[0].last_streak_update;
+   }
+
+   // Tính toán streak mới
+   const isConsecutive =
+      lastStreakDate &&
+      new Date(lastStreakDate).toDateString() ===
+         new Date(studyDate.getTime() - 24 * 60 * 60 * 1000).toDateString();
+
+   const isSameDay =
+      lastStreakDate &&
+      new Date(lastStreakDate).toDateString() === new Date(studyDate).toDateString();
+
+   // Nếu cùng ngày thì giữ nguyên current_streak
+   if (isConsecutive) {
+      currentStreak += 1;
+   } else if (!isSameDay) {
+      currentStreak = 1;
+   }
+
+   // Cập nhật longest_streak nếu chuỗi hiện tại lớn hơn
+   if (currentStreak > longestStreak) {
+      longestStreak = currentStreak;
+   }
+
+   await conn.execute(
+      `INSERT INTO students (
+         discord_id,
+         total_duration,
+         current_streak,
+         longest_streak,
+         last_streak_update,
+         created_at,
+         last_update
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+         total_duration = total_duration + VALUES(total_duration),
+         current_streak = VALUES(current_streak),
+         longest_streak = GREATEST(longest_streak, VALUES(longest_streak)),
+         last_streak_update = VALUES(last_streak_update),
+         last_update = VALUES(last_update)`,
+      [userID, minutes, currentStreak, longestStreak, studyDate, new Date(), new Date()]
+   );
+}
 
 /**
  * Trả về tổng phút của ngày
@@ -144,18 +220,10 @@ export const getDurationMonth = async (userID, month = null) => {
    }
 };
 
-export const getDataStudent = async (userID) => {
-   let conn;
-   try {
-      conn = await connectionPool.getConnection();
-      try {
-         const [rows] = await conn.execute('SELECT * FROM students WHERE discord_id = ?', [userID]);
-         return rows.length > 0 ? rows[0] : null;
-      } finally {
-         conn.release();
-      }
-   } catch (err) {
-      console.error('Error getting connection for student data:', err.message);
-      return null;
-   }
-};
+/**
+ * Trả về tổng phút tháng, năm
+ * Trung bình số phút học trong tháng hiện tại
+ * Trả về chuỗi ngày học dài nhất trong tháng
+ * Trả về chuôi hiện tại
+ * Trả về kỉ lục chuỗi học dài nhất
+ **/

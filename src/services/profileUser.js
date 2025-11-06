@@ -10,11 +10,10 @@ export const handleMessageCheckInfo = async (message) => {
    const currentStudent = await getDataStudent(message.member.id);
 
    if (!currentStudent) {
-      studentNotFound(message);
-      return;
+      return studentNotFound(message);
    }
 
-   const [totalHours, totalMinutes] = formatDuration(currentStudent.totalDuration);
+   const [totalHours, totalMinutes] = formatDuration(currentStudent.total_duration);
 
    const embedSuccess = new EmbedBuilder()
       .setColor('#00b894')
@@ -27,7 +26,7 @@ export const handleMessageCheckInfo = async (message) => {
             '🎖️ Học Vị:',
             `\`\`\`yaml\n> ${getCurrentRank(currentStudent.totalDuration)}\`\`\``,
             '🛎️ Ngày Bắt Đầu:',
-            `\`\`\`yaml\n🔹${formatVietnameseDate(currentStudent.startLearn)}\`\`\``,
+            `\`\`\`yaml\n🔹${formatVietnameseDate(currentStudent.created_at)}\`\`\``,
             '⏳ Kinh Nghiệm Tích Lũy:',
             `\`\`\`yaml\n🔹${totalHours} giờ ${totalMinutes} phút\`\`\`\n`,
          ].join('\n'),
@@ -48,13 +47,11 @@ export const handleMessageCheckRank = async (message) => {
    const currentStudent = await getDataStudent(message.member.id);
 
    if (!currentStudent) {
-      studentNotFound(message);
-      return;
+      return studentNotFound(message);
    }
 
-   const footerImage = new AttachmentBuilder(path.resolve('src/images/background_4.png'));
-   const rankProgress = getRankProgress(currentStudent.totalDuration);
-   const [totalHours, totalMinutes] = formatDuration(currentStudent.totalDuration);
+   const rankProgress = getRankProgress(currentStudent.total_duration);
+   const [totalHours, totalMinutes] = formatDuration(currentStudent.total_duration);
    const [hoursRequired, minutesRequired] = formatDuration(rankProgress.requiredDurationForNext);
 
    const embedSuccess = new EmbedBuilder()
@@ -63,16 +60,12 @@ export const handleMessageCheckRank = async (message) => {
       .addFields(
          {
             name: '> 📌 Cấp bậc nói lên trình độ học vấn của bạn!\n\u200B',
-            value: [
-               `👤 **Học Viên:** <@${message.member.id}>\n`,
-               '⏳ **Tổng giờ học:**',
-               `\`> ${totalHours} giờ ${totalMinutes} phút\``,
-            ].join('\n'),
+            value: [`👤 **Học Viên:** <@${message.member.id}>`, '^_^'].join('\n'),
             inline: false,
          },
          {
             name: '🎖️ Học vị hiện tại:',
-            value: `\`> ${getCurrentRank(currentStudent.totalDuration)} - [ ${
+            value: `\`> ${getCurrentRank(currentStudent.total_duration)} - [ ${
                rankProgress.progressToNextRank
             } % ]\``,
             inline: true,
@@ -83,21 +76,53 @@ export const handleMessageCheckRank = async (message) => {
             inline: true,
          },
          {
+            name: '\u200B',
+            value: '\u200B',
+            inline: true,
+         },
+         {
+            name: '⏳ Tổng giờ học:',
+            value: `\`> ${totalHours} giờ ${totalMinutes} phút\``,
+            inline: true,
+         },
+         {
             name: '⏳ Thời gian còn thiếu:',
-            value: `\`> ${hoursRequired} giờ ${minutesRequired} phút\``,
+            value: `\`> ${hoursRequired} giờ ${minutesRequired} phút\`\n\n`,
+            inline: true,
+         },
+         {
+            name: '\u200B',
+            value: '\u200B',
+            inline: true,
+         },
+         {
+            name: '📅  Chuỗi ngày học liên tục:',
+            value: [
+               `\`> Dài nhất: ${currentStudent.longest_streak} buổi\``,
+               `\`> Hiện tại: ${currentStudent.current_streak} buổi\``,
+            ].join('\n'),
+            inline: true,
+         },
+         {
+            name: '\u200B',
+            value: '\u200B',
+            inline: true,
+         },
+         {
+            name: '> *🍀 Chúc bạn sớm đạt được cấp bậc tiếp theo!*',
+            value: '',
             inline: false,
          }
       )
-      .setImage('attachment://background_4.png')
       .setTimestamp();
 
    embedSuccess
       .setFooter({
-         text: `🧩 Rank System! • Update at: ${formatDateTime(currentStudent.lastUpdate)}`,
+         text: `🧩 Rank System! • Update at: ${formatDateTime(currentStudent.last_update)}`,
       })
       .setTimestamp();
 
-   await message.channel.send({ embeds: [embedSuccess], files: [footerImage] });
+   await message.channel.send({ embeds: [embedSuccess] });
 };
 
 const studentNotFound = async (message) => {
