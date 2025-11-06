@@ -29,8 +29,14 @@ export const formatVietnameseDate = (date) => {
 
 export const timeDifference = (inputDate) => {
    const now = new Date();
+   const parsed = new Date(inputDate);
 
-   const diffMs = Math.abs(now - inputDate);
+   if (isNaN(parsed.getTime())) {
+      console.error('Invalid date format:', inputDate);
+      return 'Ngày không hợp lệ';
+   }
+
+   const diffMs = Math.abs(now - parsed);
    const diffMinutes = Math.floor(diffMs / (1000 * 60));
    const totalHours = Math.floor(diffMinutes / 60);
    const remainingMinutes = diffMinutes % 60;
@@ -50,7 +56,36 @@ export const totalMinutes = (input) => {
 
 export const formatDuration = (totalMinutes) => {
    if (totalMinutes <= 0) return [0, 0];
+
    const hours = Math.floor(totalMinutes / 60);
    const minutes = totalMinutes % 60;
    return [hours, minutes];
+};
+
+/**
+ * Hàm xác định year và monthIndex từ tham số month
+ * @param {number|string|null} month - Tháng cần xử lý
+ * @returns {Object|null} { year, monthIndex } hoặc null nếu không hợp lệ
+ */
+export const getYearMonth = (month = null) => {
+   const now = new Date();
+   let year, monthIndex;
+
+   if (month === null || month === undefined) {
+      year = now.getFullYear();
+      monthIndex = now.getMonth() + 1;
+   } else if (typeof month === 'number' && Number.isInteger(month)) {
+      if (month < 1 || month > 12) return null;
+      const currentMonthIndex = now.getMonth() + 1;
+      if (month > currentMonthIndex) return null;
+      year = now.getFullYear();
+      monthIndex = month;
+   } else {
+      const parsed = new Date(month);
+      if (isNaN(parsed.getTime())) return null;
+      year = parsed.getFullYear();
+      monthIndex = parsed.getMonth() + 1;
+   }
+
+   return { year, monthIndex };
 };

@@ -1,8 +1,8 @@
 import { EmbedBuilder } from 'discord.js';
 
 import { formatDateTime, timeDifference, totalMinutes, formatDuration } from '../utils/dateTime.js';
-import { hasCacheStudent } from '../dal/redisCache.js';
-import { getStudent, pushStudent, removeStudent } from '../dal/redisCache.js';
+import { hasCacheStudent } from '../cache/redisCache.js';
+import { getStudent, pushStudent, removeStudent } from '../cache/redisCache.js';
 import {
    handleAttendanceData,
    getDurationToday,
@@ -42,10 +42,11 @@ export const handleMessageOnDuty = async (message) => {
 
       const dailyDuration = await getDurationToday(message.member.id);
       const monthDuration = await getDurationMonth(message.member.id);
+
       await pushStudent({
          memberID: message.member.id,
          totalDurationDaily: dailyDuration,
-         totalDurationMonth: monthDuration.totalDurationMonth,
+         totalDurationMonth: monthDuration,
       });
    }
 };
@@ -59,17 +60,16 @@ export const handleMessageOffDuty = async (message) => {
             '> Vui lòng gõ lệnh `!onduty` để bắt đầu vào ca học nào.'
       );
    } else {
-      const [start, end] = [formatDateTime(currentRecord.createdAt), formatDateTime(new Date())];
+      const [start, end] = [currentRecord.createdAt, formatDateTime(new Date())];
       const duration = timeDifference(start);
 
-      console.log(currentRecord.createdAt + ' | ' + formatDateTime(currentRecord.createdAt));
-
       const currentDuration = totalMinutes(duration);
-      let dailyDuration = currentDuration + currentRecord.dailyDuration;
-      let monthDuration = currentDuration + currentRecord.monthDuration;
 
-      const [totalHourMonth, totalMinuteMonth] = formatDuration(monthDuration);
+      let dailyDuration = currentDuration + currentRecord.totalDurationDaily;
+      let monthDuration = currentDuration + currentRecord.totalDurationMonth;
+
       const [dailyHours, dailyMinutes] = formatDuration(dailyDuration);
+      const [totalHourMonth, totalMinuteMonth] = formatDuration(monthDuration);
 
       const embed = new EmbedBuilder()
          .setColor('#ff4b4b')
@@ -77,7 +77,9 @@ export const handleMessageOffDuty = async (message) => {
          .addFields({
             name: '> 📌 Ca học đã kết thúc:',
             value: [
-               `\`\`\`yaml\n🔹Bắt đầu: ${start}\n🔹Kết thúc: ${end}\`\`\``,
+               `\`\`\`yaml\n🔹Bắt đầu: ${formatDateTime(
+                  currentRecord.createdAt
+               )}\n🔹Kết thúc: ${end}\`\`\``,
                '> 💼 Tổng thời gian:',
                `\`\`\`yaml\n🔹Thời gian: ${duration}\`\`\``,
                `🗓️ **Tổng hôm nay:** ${dailyHours} giờ ${dailyMinutes} phút`,
@@ -96,7 +98,7 @@ export const handleMessageOffDuty = async (message) => {
       await message.channel.send({ embeds: [embed] });
 
       await removeStudent(message.member.id);
-      await handleAttendanceData(message.member.id, dailyDuration, monthDuration, currentDuration);
+      await handleAttendanceData(message.member.id, currentDuration);
    }
 };
 
@@ -109,7 +111,7 @@ export const handleMessageStatus = async (message) => {
             '> Vui lòng gõ lệnh `!onduty` để bắt đầu vào ca học nào.'
       );
    } else {
-      const duration = timeDifference(userOnDuty.timeOnDuty);
+      const duration = timeDifference(userOnDuty.createdAt);
 
       const embed = new EmbedBuilder()
          .setColor('#3498db')
@@ -118,7 +120,7 @@ export const handleMessageStatus = async (message) => {
             name: '> 📌 Hiện tại bạn đang trong ca học của mình!:',
             value: [
                `\`\`\`yaml\n🔹Đã học được: ${duration}\`\`\``,
-               `🕒 **Bắt đầu từ:** ${formatDateTime(userOnDuty.timeOnDuty)}`,
+               `🕒 **Bắt đầu từ:** ${formatDateTime(userOnDuty.createdAt)}`,
                '',
                `👏 *Cảm ơn bạn đã tham gia ca học hôm nay!*`,
             ].join('\n'),

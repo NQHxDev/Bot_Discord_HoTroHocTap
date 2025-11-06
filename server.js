@@ -3,10 +3,10 @@ import express from 'express';
 import { Client, GatewayIntentBits } from 'discord.js';
 
 import appRouter from './src/routes/mainRoute.js';
-import redisClient from './src/dal/redisClient.js';
+import redisClient from './src/cache/redisClient.js';
 import './src/library/rankSystem.js';
 
-import { connectionPool } from './src/configs/connectDatabase.js';
+import connectionPool from './src/configs/connectDatabase.js';
 
 import {
    handlingMessagesAttendance,
@@ -20,7 +20,7 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/api', appRouter);
+app.use('/', appRouter);
 
 app.listen(process.env.PORT || 3000, () => {
    if (connectionPool) {
