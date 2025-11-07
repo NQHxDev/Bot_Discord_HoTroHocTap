@@ -149,14 +149,3 @@ export const handleHelpCommand = (message) => {
          `<@${message.member.id}> - Chúc bạn có một ngày học tập vui vẻ.`
    );
 };
-
-export const handleMessageNotFound = (message) => {
-   message.reply(
-      `❌ **<@${message.member.id}> Lệnh không hợp lệ!**\n\n` +
-         `> Đây là kênh **On Off Duty** - nơi quản lý thời gian học tập!\n\n` +
-         `📌 Vui lòng sử dụng các lệnh sau:\n` +
-         `🔹 \`!onduty\` - Bắt đầu ca học\n` +
-         `🔹 \`!offduty\` - Kết thúc ca học\n\n` +
-         `📘 Nếu cần trợ giúp, hãy gõ \`!help\` để xem hướng dẫn chi tiết.`
-   );
-};

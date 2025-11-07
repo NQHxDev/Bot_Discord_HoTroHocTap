@@ -1,56 +1,24 @@
-import {
-   handleMessageOnDuty,
-   handleMessageOffDuty,
-   handleMessageStatus,
-   handleMessageNotFound,
-   handleHelpCommand,
-} from '../services/attendance.js';
+import handlingMessagesAttendance from './controls/attendance.js';
+import handlingMessagesProfileUser from './controls/profileUser.js';
+import handlingMessagesLearningSupport from './controls/learningSupport.js';
 
-import {
-   handleMessageCheckInfo,
-   handleMessageCheckKPI,
-   handleMessageCheckRank,
-} from '../services/profileUser.js';
-
-export const handlingMessagesAttendance = (message) => {
-   const messageContent = message.content.toLowerCase();
-   switch (messageContent) {
-      case '!onduty':
-         handleMessageOnDuty(message);
+export const handleMessageServer = (message) => {
+   switch (message.channel.id) {
+      case '1374497118978572464': // ID kênh Operating Room
          break;
-      case '!offduty':
-         handleMessageOffDuty(message);
+      case '1435205773146980392': // ID kênh: điểm danh
+         handlingMessagesAttendance(message);
          break;
-      case '!status':
-         handleMessageStatus(message);
+      case '1436271317400686612': // ID kênh Dev
+      case '1435206051237597245': // ID kênh: check time học
+         handlingMessagesProfileUser(message);
          break;
-      case '!help':
-         handleHelpCommand(message);
+      case '1435185622771040446': // ID kênh: hỗ trợ học tập
+         handlingMessagesLearningSupport(message);
          break;
       default:
-         handleMessageNotFound(message);
+         handlingMessagesTest(message);
          break;
-   }
-};
-
-export const handlingMessagesCheckTime = (message) => {
-   const messageContent = message.content.toLowerCase();
-   switch (messageContent) {
-      case '!myinfo':
-         handleMessageCheckInfo(message);
-         break;
-      case '!kpi':
-         handleMessageCheckKPI(message);
-         break;
-      case '!ranking':
-         handleMessageCheckRank(message);
-         break;
-   }
-};
-
-export const handlingMessagesLearningSupport = (message) => {
-   if (message.content === '!helpme') {
-      message.channel.send('Learning support is already!');
    }
 };
 

@@ -1,5 +1,8 @@
+import clientServer from '../../server.js';
 import connectionPool from '../configs/connectDatabase.js';
-import { getYearMonth } from '../utils/dateTime.js';
+
+import { getDisplayName } from '../services/discord.js';
+import { formatDuration, getYearMonth, formatDateTwoNumber } from '../utils/dateTime.js';
 
 export const getDataStudent = async (userID) => {
    let conn;
@@ -296,6 +299,122 @@ export const getStudentKPI = async (userID, month = null) => {
    } catch (err) {
       console.error('Error in getStudentKPI:', err.message);
       return buildEmpty();
+   } finally {
+      if (conn) conn.release();
+   }
+};
+
+/**
+ * Nếu month null thì lấy Rank của tháng hiện tại
+ * Trả về top 20 người có thời gian Onduty lâu nhất trong tháng (theo total minutes)
+ *
+ * @param month định dạng dd/MM/yyyy | số tháng (1-12) | null
+ * @param {number|string|null} month
+ * @returns {Promise<Array<{discord_id: string, total_minutes: number, total_hours: string}>>}
+ */
+export const getMonthlyUserRank = async (month = null) => {
+   // Lấy year và monthIndex từ hàm đã cho
+   const yearMonth = getYearMonth(month);
+   if (!yearMonth) {
+      throw new Error(`Invalid month parameter - ${yearMonth}`);
+   }
+   const { year, monthIndex } = yearMonth;
+
+   // Tính ngày bắt đầu và kết thúc của month
+   const startDate = `${year}-${formatDateTwoNumber(monthIndex)}-01`;
+   const lastDay = new Date(year, monthIndex, 0).getDate();
+   const endDate = `${year}-${formatDateTwoNumber(monthIndex)}-${formatDateTwoNumber(lastDay)}`;
+
+   /**
+    * Tính tổng duration_minutes theo discord_id
+    * Lọc theo attendance_day BETWEEN startDate AND endDate
+    */
+   const query = `
+      SELECT
+         ad.discord_id,
+         SUM(ad.duration_minutes) AS total_minutes
+      FROM attendance_daily AS ad
+      WHERE ad.attendance_day BETWEEN ? AND ?
+      GROUP BY ad.discord_id
+      ORDER BY total_minutes DESC
+      LIMIT 20;
+   `;
+
+   let conn;
+   try {
+      conn = await connectionPool.getConnection();
+      const [rows] = await conn.execute(query, [startDate, endDate]);
+
+      const result = await Promise.all(
+         rows.map(async (record) => {
+            const totalMinutes = Number(record.total_minutes) || 0;
+            const [hour, minute] = formatDuration(totalMinutes);
+            const strDuration = `${hour} giờ ${minute} phút`;
+
+            const discordID = String(record.discord_id);
+
+            return {
+               discord_id: discordID,
+               display_name: await getDisplayName(discordID),
+               total_minutes: totalMinutes,
+               str_duration: strDuration,
+               year,
+               month: monthIndex,
+            };
+         })
+      );
+
+      return result;
+   } catch (err) {
+      throw new Error(`Failed to get monthly user rank: ${err.message}`);
+   } finally {
+      if (conn) conn.release();
+   }
+};
+
+/**
+ * Hàm trả về Top 10 người có total_duration cao nhất
+ *
+ * @returns {Promise<Array<{
+ *   discord_id: string,
+ *   display_name: string,
+ *   total_duration: string,
+ *   thisRank: number
+ * }>>}
+ */
+export const getRankDuration = async () => {
+   const sql = `
+      SELECT
+         CAST(discord_id AS CHAR) AS discord_id,
+         CAST(total_duration AS CHAR) AS total_duration
+      FROM students
+      WHERE status = 'active'
+      ORDER BY CAST(total_duration AS UNSIGNED) DESC
+      LIMIT 10;
+  `;
+
+   let conn;
+   try {
+      conn = await connectionPool.getConnection();
+      const [rows] = await conn.execute(sql);
+
+      const result = await Promise.all(
+         rows.map(async (record, idx) => {
+            const discordID = String(record.discord_id);
+            const totalDuration = record.total_duration;
+
+            return {
+               discord_id: discordID,
+               display_name: await getDisplayName(discordID),
+               total_duration: totalDuration,
+               thisRank: idx + 1,
+            };
+         })
+      );
+
+      return result;
+   } catch (err) {
+      throw new Error(`Failed to get rank duration: ${err.message}`);
    } finally {
       if (conn) conn.release();
    }
