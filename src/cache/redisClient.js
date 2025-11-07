@@ -2,6 +2,7 @@ import { createClient } from 'redis';
 import dotenv from 'dotenv';
 dotenv.config();
 
+// ⚙️ Tạo client Redis
 const redisClient = createClient({
    password: process.env.REDIS_PASSWORD,
    socket: {
@@ -11,6 +12,14 @@ const redisClient = createClient({
 });
 
 redisClient.on('error', (err) => console.error('Redis Client Error', err));
-await redisClient.connect();
+
+// 🚀 Kết nối Redis
+(async () => {
+   try {
+      await redisClient.connect();
+   } catch (err) {
+      console.error('❗ Redis connect failed:', err);
+   }
+})();
 
 export default redisClient;

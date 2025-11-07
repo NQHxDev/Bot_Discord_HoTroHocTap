@@ -1,11 +1,27 @@
 import { format, parse } from 'date-fns';
 
+function parseArrayValue(inputMonth) {
+   if (inputMonth == null) return null;
+
+   let value = String(inputMonth);
+
+   if (value.includes('/')) {
+      return value;
+   } else {
+      return Number(value);
+   }
+}
+
 export const parseDateTime = (input) => {
    const [timePart, datePart] = input.split(' ');
    const [hour, minute] = timePart.split(':').map(Number);
    const [day, month, year] = datePart.split('/').map(Number);
 
    return new Date(year, month - 1, day, hour, minute);
+};
+
+export const formatDateTwoNumber = (numberDate) => {
+   return numberDate < 10 ? `0${numberDate}` : `${numberDate}`;
 };
 
 export const formatDateTime = (date) => {
@@ -71,21 +87,44 @@ export const getYearMonth = (month = null) => {
    const now = new Date();
    let year, monthIndex;
 
-   if (month === null || month === undefined) {
+   const valueMonth = parseArrayValue(month);
+
+   if (valueMonth === null || valueMonth === undefined) {
       year = now.getFullYear();
       monthIndex = now.getMonth() + 1;
-   } else if (typeof month === 'number' && Number.isInteger(month)) {
-      if (month < 1 || month > 12) return null;
-      const currentMonthIndex = now.getMonth() + 1;
-      if (month > currentMonthIndex) return null;
+   } else if (typeof valueMonth === 'number' && Number.isInteger(valueMonth)) {
+      if (valueMonth < 1 || valueMonth > 12) return null;
       year = now.getFullYear();
-      monthIndex = month;
+      monthIndex = valueMonth;
    } else {
-      const parsed = new Date(month);
-      if (isNaN(parsed.getTime())) return null;
-      year = parsed.getFullYear();
-      monthIndex = parsed.getMonth() + 1;
+      const strMonth = String(valueMonth);
+      if (strMonth.includes('/')) {
+         const parts = strMonth.split('/');
+
+         if (parts.length === 3) {
+            // Nếu là chuỗi có dạng dd/MM/yyyy
+            const [day, monthStr, yearStr] = parts;
+            const d = parseInt(day, 10);
+            const m = parseInt(monthStr, 10);
+            const y = parseInt(yearStr, 10);
+
+            if (isNaN(d) || isNaN(m) || isNaN(y) || m < 1 || m > 12) return null;
+            year = y;
+            monthIndex = m;
+         } else if (parts.length === 2) {
+            // Nếu là chuỗi có dạng dd/MM
+            monthIndex = parseInt(parts[0], 10);
+            year = parseInt(parts[1], 10);
+         } else return null;
+      } else {
+         // Nếu là chuỗi ISO (yyyy-MM-dd hoặc tương đương)
+         const parsed = new Date(valueMonth);
+         if (isNaN(parsed.getTime())) return null;
+         year = parsed.getFullYear();
+         monthIndex = parsed.getMonth() + 1;
+      }
    }
+   if (isNaN(monthIndex) || isNaN(year) || monthIndex < 1 || monthIndex > 12) return null;
 
    return { year, monthIndex };
 };

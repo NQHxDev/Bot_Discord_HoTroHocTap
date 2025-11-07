@@ -8,12 +8,7 @@ import './src/library/rankSystem.js';
 
 import connectionPool from './src/configs/connectDatabase.js';
 
-import {
-   handlingMessagesAttendance,
-   handlingMessagesCheckTime,
-   handlingMessagesLearningSupport,
-   handlingMessagesTest,
-} from './src/controllers/mainController.js';
+import { handleMessageServer } from './src/controllers/mainController.js';
 
 dotenv.config();
 
@@ -32,7 +27,8 @@ app.listen(process.env.PORT || 3000, () => {
    console.log('🌐 Web server running...');
 });
 
-const client = new Client({
+// Khởi tạo Client Discord Server
+const clientServer = new Client({
    intents: [
       GatewayIntentBits.Guilds,
       GatewayIntentBits.GuildMessages,
@@ -40,30 +36,16 @@ const client = new Client({
    ],
 });
 
-client.once('clientReady', () => {
-   const [botName] = client.user.tag.split('#');
+clientServer.once('clientReady', () => {
+   const [botName] = clientServer.user.tag.split('#');
    console.log(`🤖 Bot Discord: ${botName} running...`);
 });
 
-client.on('messageCreate', async (message) => {
+clientServer.on('messageCreate', async (message) => {
    if (message.author.bot) return;
-
-   if (message.channel.parentId === '1435205452945166426') {
-      switch (message.channel.id) {
-         case '1435205773146980392': // ID kênh: điểm danh
-            handlingMessagesAttendance(message);
-            break;
-         case '1435206051237597245': // ID kênh: check time học
-            handlingMessagesCheckTime(message);
-            break;
-         case '1435185622771040446': // ID kênh: hỗ trợ học tập
-            handlingMessagesLearningSupport(message);
-            break;
-         default:
-            handlingMessages(message);
-            break;
-      }
-   }
+   handleMessageServer(message);
 });
 
-client.login(process.env.TOKEN);
+clientServer.login(process.env.TOKEN);
+
+export default clientServer;
