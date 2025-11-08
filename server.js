@@ -12,7 +12,7 @@ import { testConnection } from './src/configs/connectDatabase.js';
 import { handleMessageServer, handleNotification } from './src/controllers/mainController.js';
 import { setDiscordClient } from './src/library/discordClient.js';
 
-const isDev = process.env.NODE_ENV === process.env.NODE_DEV;
+const isDev = process.env.NODE_ENV === 'development';
 const PORT = process.env.PORT || 3000;
 const DISCORD_TOKEN = process.env.TOKEN;
 
@@ -48,7 +48,7 @@ async function initServerBot() {
          console.log('🚀 Connected to Redis Cloud!');
       }
 
-      const server = app.listen(PORT, () => {
+      app.listen(PORT, () => {
          console.log(`🌐 Web server running on port ${PORT}...`);
       });
 

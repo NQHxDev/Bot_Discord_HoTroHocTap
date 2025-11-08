@@ -3,7 +3,7 @@ import mysql from 'mysql2/promise';
 
 dotenv.config();
 
-const isDev = process.env.NODE_ENV === process.env.NODE_DEV;
+const isDev = process.env.NODE_ENV === 'development';
 const prefix = isDev ? '_DEV' : '';
 
 const config = {
