@@ -64,7 +64,9 @@ export const handleMessageHelpCommand = async (message) => {
 
 // Message: !myinfo
 export const handleMessageCheckInfo = async (message) => {
-   const footerImage = new AttachmentBuilder(path.resolve('src/images/background.jpg'));
+   const footerImage = new AttachmentBuilder(
+      path.join(process.cwd(), 'src', 'images', 'background.jpg')
+   );
    const currentStudent = await getDataStudent(message.member.id);
 
    if (!currentStudent) {
@@ -82,7 +84,7 @@ export const handleMessageCheckInfo = async (message) => {
             '👤 Tên Học Viên:',
             `\`\`\`yaml\n${message.member.displayName}\`\`\``,
             '🎖️ Học Vị:',
-            `\`\`\`yaml\n> ${getCurrentRank(currentStudent.totalDuration)}\`\`\``,
+            `\`\`\`yaml\n> ${getCurrentRank(currentStudent.total_duration)}\`\`\``,
             '🛎️ Ngày Bắt Đầu:',
             `\`\`\`yaml\n🔹${formatVietnameseDate(currentStudent.created_at)}\`\`\``,
             '⏳ Kinh Nghiệm Tích Lũy:',

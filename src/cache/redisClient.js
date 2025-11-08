@@ -13,13 +13,4 @@ const redisClient = createClient({
 
 redisClient.on('error', (err) => console.error('Redis Client Error', err));
 
-// 🚀 Kết nối Redis
-(async () => {
-   try {
-      await redisClient.connect();
-   } catch (err) {
-      console.error('❗ Redis connect failed:', err);
-   }
-})();
-
 export default redisClient;

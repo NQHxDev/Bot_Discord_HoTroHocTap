@@ -1,4 +1,3 @@
-import clientServer from '../../server.js';
 import connectionPool from '../configs/connectDatabase.js';
 
 import { getDisplayName } from '../services/discord.js';
