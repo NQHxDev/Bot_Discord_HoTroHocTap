@@ -13,7 +13,7 @@ import { handleMessageServer, handleNotification } from './src/controllers/mainC
 import { setDiscordClient } from './src/library/discordClient.js';
 
 const isDev = process.env.NODE_ENV === process.env.NODE_DEV;
-const PORT = Number(process.env.PORT) || 3000;
+const PORT = process.env.PORT || 3000;
 const DISCORD_TOKEN = process.env.TOKEN;
 
 if (!DISCORD_TOKEN) {
