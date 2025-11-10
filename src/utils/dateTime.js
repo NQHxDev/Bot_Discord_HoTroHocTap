@@ -1,8 +1,7 @@
 import { format, parse } from 'date-fns';
 
 export const getVietNamDateTime = () => {
-   const nowDateTime = new Date();
-   nowDateTime.toLocaleString('vi-VN', {
+   return new Date().toLocaleString('vi-VN', {
       timeZone: 'Asia/Ho_Chi_Minh',
       hour12: false,
       year: 'numeric',
@@ -12,7 +11,6 @@ export const getVietNamDateTime = () => {
       minute: '2-digit',
       second: '2-digit',
    });
-   return nowDateTime;
 };
 
 const parseArrayValue = (inputMonth) => {

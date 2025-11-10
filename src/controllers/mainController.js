@@ -49,22 +49,26 @@ export const handleNotification = async (clientServer, redisClient, startTime) =
 };
 
 export const handleMessageServer = (message) => {
-   switch (message.channel.id) {
-      case '1374497118978572464': // ID kênh Operating Room
-         break;
-      case '1435205773146980392': // ID kênh: điểm danh
-         handlingMessagesAttendance(message);
-         break;
-      case '1436271317400686612': // ID kênh Dev
-      case '1435206051237597245': // ID kênh: check time học
-         handlingMessagesProfileUser(message);
-         break;
-      case '1435185622771040446': // ID kênh: hỗ trợ học tập
-         handlingMessagesLearningSupport(message);
-         break;
-      default:
-         handlingMessagesTest(message);
-         break;
+   if (message.channel.id === '1436271317400686612') {
+      handlingMessagesAttendance(message);
+      return;
+   }
+
+   const channelHandlers = {
+      '1374497118978572464': (msg) => {
+         // Operating Room
+      },
+      '1435205773146980392': handlingMessagesAttendance, // Điểm danh
+      '1435206051237597245': handlingMessagesProfileUser, // Check time học
+      '1435185622771040446': handlingMessagesLearningSupport, // Hỗ trợ học tập
+   };
+
+   const handlerForChannel = channelHandlers[message.channel.id];
+   if (handlerForChannel) {
+      console.log('This running...');
+      handlerForChannel(message); // gọi handler với message
+   } else {
+      handlingMessagesTest(message);
    }
 };
 

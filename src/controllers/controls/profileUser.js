@@ -17,9 +17,9 @@ const handlingMessagesProfileUser = async (message) => {
 
       if (options != null) {
          const allowedRoleIds = [
-            '1416060851919519754',
-            '1370338798465978390',
-            '1436060501070184621',
+            '1416060851919519754', // Role Owner
+            '1370338798465978390', // Role Leader
+            '1436060501070184621', // Role Support
          ];
          if (!message.member.roles.cache.some((role) => allowedRoleIds.includes(role.id))) {
             return await userNotRole(message);
@@ -57,8 +57,9 @@ export const handleMessageNotFound = (message) => {
          `> Đây là kênh **Check Time Học** - nơi thống kê thông tin học tập!\n\n` +
          `📌 Vui lòng sử dụng các lệnh sau:\n` +
          `🔹 \`!myinfo\` - Xem thông tin cá nhân\n` +
-         `🔹 \`!myrank\` - Xem thông tin thành tựu cá nhân\n\n` +
-         `🔹 \`!kpi\` - Xem tiến hộ hoàn thành cá nhân trong tháng\n\n` +
+         `🔹 \`!myrank\` - Xem thông tin thành tựu cá nhân\n` +
+         `🔹 \`!kpi\` - Xem tiến hộ hoàn thành cá nhân trong tháng\n` +
+         `🔹 \`!top\` - Xem thông tin các cá nhân xuất sắc nhất\n\n` +
          `📘 Nếu cần trợ giúp, hãy gõ \`!help\` để xem hướng dẫn chi tiết.`
    );
 };
