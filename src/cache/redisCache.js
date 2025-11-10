@@ -86,8 +86,6 @@ export const saveCacheMember = async (discordId, guildId, memberInfo) => {
    try {
       const pipeline = redisClient.multi();
 
-      console.log(JSON.stringify(memberInfo));
-
       pipeline.hSet(MEMBER_CACHE_HASH, cacheKey, JSON.stringify(memberInfo));
       pipeline.expire(MEMBER_CACHE_HASH, cacheConfig.guildMember);
       await pipeline.exec();

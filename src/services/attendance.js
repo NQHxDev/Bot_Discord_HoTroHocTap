@@ -1,6 +1,12 @@
 import { EmbedBuilder } from 'discord.js';
 
-import { formatDateTime, timeDifference, totalMinutes, formatDuration } from '../utils/dateTime.js';
+import {
+   formatDateTime,
+   timeDifference,
+   totalMinutes,
+   formatDuration,
+   getVietNamDateTime,
+} from '../utils/dateTime.js';
 import { hasCacheStudent } from '../cache/redisCache.js';
 import { getStudent, pushStudent, removeStudent } from '../cache/redisCache.js';
 import {
@@ -16,7 +22,7 @@ export const handleMessageOnDuty = async (message) => {
             '> Vui lòng gõ lệnh `!offduty` trước khi bật lại chế độ này nhé.'
       );
    } else {
-      const [date, time] = formatDateTime(new Date()).split(' - ');
+      const [date, time] = formatDateTime(getVietNamDateTime()).split(' - ');
 
       const embed = new EmbedBuilder()
          .setColor('#2fff20')
