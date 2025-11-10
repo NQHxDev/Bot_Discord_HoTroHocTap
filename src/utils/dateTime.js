@@ -1,6 +1,20 @@
 import { format, parse } from 'date-fns';
 
-function parseArrayValue(inputMonth) {
+export const getVietNamDateTime = () => {
+   const now = new Date();
+   now.toLocaleString('vi-VN', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      hour12: false,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+   });
+};
+
+const parseArrayValue = (inputMonth) => {
    if (inputMonth == null) return null;
 
    let value = String(inputMonth);
@@ -10,7 +24,7 @@ function parseArrayValue(inputMonth) {
    } else {
       return Number(value);
    }
-}
+};
 
 export const parseDateTime = (input) => {
    const [timePart, datePart] = input.split(' ');
