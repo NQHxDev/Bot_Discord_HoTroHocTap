@@ -6,6 +6,7 @@ import {
    totalMinutes,
    formatDuration,
    getVietNamDateTime,
+   parseDateToVietNam,
 } from '../utils/dateTime.js';
 import { hasCacheStudent } from '../cache/redisCache.js';
 import { getStudent, pushStudent, removeStudent } from '../cache/redisCache.js';
@@ -66,8 +67,11 @@ export const handleMessageOffDuty = async (message) => {
             '> Vui lòng gõ lệnh `!onduty` để bắt đầu vào ca học nào.'
       );
    } else {
-      const [start, end] = [currentRecord.createdAt, formatDateTime(new Date())];
-      const duration = timeDifference(start);
+      const [start, end] = [
+         parseDateToVietNam(currentRecord.createdAt),
+         formatDateTime(getVietNamDateTime()),
+      ];
+      const duration = timeDifference(currentRecord.createdAt);
 
       const currentDuration = totalMinutes(duration);
 
@@ -83,9 +87,7 @@ export const handleMessageOffDuty = async (message) => {
          .addFields({
             name: '> 📌 Ca học đã kết thúc:',
             value: [
-               `\`\`\`yaml\n🔹Bắt đầu: ${formatDateTime(
-                  currentRecord.createdAt
-               )}\n🔹Kết thúc: ${end}\`\`\``,
+               `\`\`\`yaml\n🔹Bắt đầu: ${formatDateTime(start)}\n🔹Kết thúc: ${end}\`\`\``,
                '> 💼 Tổng thời gian:',
                `\`\`\`yaml\n🔹Thời gian: ${duration}\`\`\``,
                `🗓️ **Tổng hôm nay:** ${dailyHours} giờ ${dailyMinutes} phút`,

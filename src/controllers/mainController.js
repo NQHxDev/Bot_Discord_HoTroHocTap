@@ -4,15 +4,18 @@ import handlingMessagesAttendance from './controls/attendance.js';
 import handlingMessagesProfileUser from './controls/profileUser.js';
 import handlingMessagesLearningSupport from './controls/learningSupport.js';
 
+import { parseDateToVietNam, formatDateTime } from '../utils/dateTime.js';
+
 import { testConnection } from '../configs/connectDatabase.js';
 
 dotenv.config();
 
-export const handleNotification = async (clientServer, redisClient, startTime) => {
+export const handleNotification = async (clientServer, redisClient, start) => {
    if (!clientServer?.user) return;
 
+   const startTime = parseDateToVietNam(start);
    const endTime = new Date();
-   const duration = (endTime - startTime) / 1000;
+   const duration = (endTime - start) / 1000;
 
    const dbStatus = (await testConnection()) ? 'SQL Connected!' : 'SQL Failed...';
    const cacheStatus = redisClient?.isReady ? 'Redis Connected!' : 'Redis Failed...';
@@ -30,7 +33,7 @@ export const handleNotification = async (clientServer, redisClient, startTime) =
             inline: false,
          },
          { name: '⏱️ Startup Time', value: `*➜* ${duration.toFixed(2)}s`, inline: true },
-         { name: '🕒 Started At', value: startTime.toLocaleString(), inline: false }
+         { name: '🕒 Started At', value: formatDateTime(startTime), inline: false }
       )
       .setFooter({ text: `Bot: ${clientServer.user.tag}` })
       .setTimestamp();
@@ -65,7 +68,6 @@ export const handleMessageServer = (message) => {
 
    const handlerForChannel = channelHandlers[message.channel.id];
    if (handlerForChannel) {
-      console.log('This running...');
       handlerForChannel(message); // gọi handler với message
    } else {
       handlingMessagesTest(message);
